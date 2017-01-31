@@ -5,16 +5,24 @@ metadata:
 data:
   setup-certs.sh: |-
     #!/bin/bash
-    EASY_RSA_LOC="/usr/share/easy-rsa"
-    cd $EASY_RSA_LOC
-    ./easyrsa init-pki
-    echo "ca\n" | ./easyrsa build-ca nopass
-    ./easyrsa build-server-full server nopass
-    ./easyrsa gen-dh
+    EASY_RSA_LOC="/etc/openvpn/certs"
+    SERVER_CERT="${EASY_RSA_LOC}/pki/issued/server.crt"
+    if [ -e "$SERVER_CERT" ]
+    then
+      echo "found existing certs - reusing"
+    else
+      cp -R /usr/share/easy-rsa/* $EASY_RSA_LOC
+      cd $EASY_RSA_LOC
+      ./easyrsa init-pki
+      echo "ca\n" | ./easyrsa build-ca nopass
+      ./easyrsa build-server-full server nopass
+      ./easyrsa gen-dh 
+    fi
+    
     
   newClientCert.sh: |-
       #!/bin/bash
-      EASY_RSA_LOC="/usr/share/easy-rsa"
+      EASY_RSA_LOC="/etc/openvpn/certs"
       cd $EASY_RSA_LOC
       MY_IP_ADDR="$2"
       ./easyrsa build-client-full $1 nopass
@@ -39,7 +47,7 @@ data:
       remote ${MY_IP_ADDR} {{ .Values.service.externalPort }} {{ .Values.openvpn.OVPN_PROTO }}
       </connection>
       EOF
-      cat ${EASY_RSA_LOC}/pki/$1.ovpn
+      cat pki/$1.ovpn
       
   configure.sh: |-
       #!/bin/sh
@@ -71,11 +79,10 @@ data:
   openvpn.conf: |-
       server {{ .Values.openvpn.OVPN_NETWORK }} {{ .Values.openvpn.OVPN_SUBNET }}
       verb 3
-      
-      key /usr/share/easy-rsa/pki/private/server.key
-      ca /usr/share/easy-rsa/pki/ca.crt
-      cert /usr/share/easy-rsa/pki/issued/server.crt
-      dh /usr/share/easy-rsa/pki/dh.pem
+      key /etc/openvpn/certs/pki/private/server.key
+      ca /etc/openvpn/certs/pki/ca.crt
+      cert /etc/openvpn/certs/pki/issued/server.crt
+      dh /etc/openvpn/certs/pki/dh.pem
       
       key-direction 0
       keepalive 10 60
